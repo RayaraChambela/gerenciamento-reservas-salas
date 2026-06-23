@@ -16,7 +16,8 @@ import { useColorScheme } from 'react-native';
 
 export default function RegisterScreen() {
   const { register } = useAuth();
-  const scheme = useColorScheme() ?? 'light';
+  const rawScheme = useColorScheme();
+  const scheme = rawScheme === 'dark' ? 'dark' : 'light';
   const colors = Colors[scheme];
 
   const [name, setName] = useState('');

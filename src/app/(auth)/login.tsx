@@ -16,7 +16,8 @@ import { useColorScheme } from 'react-native';
 
 export default function LoginScreen() {
   const { login } = useAuth();
-  const scheme = useColorScheme() ?? 'light';
+  const rawScheme = useColorScheme();
+  const scheme = rawScheme === 'dark' ? 'dark' : 'light';
   const colors = Colors[scheme];
 
   const [email, setEmail] = useState('');

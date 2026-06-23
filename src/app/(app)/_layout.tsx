@@ -7,7 +7,8 @@ import { Colors } from '@/constants/theme';
 
 export default function AppLayout() {
   const { user, isLoading } = useAuth();
-  const scheme = useColorScheme() ?? 'light';
+  const rawScheme = useColorScheme();
+  const scheme = rawScheme === 'dark' ? 'dark' : 'light';
   const colors = Colors[scheme];
 
   if (isLoading) {

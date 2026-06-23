@@ -6,7 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 // TODO (T12): listar salas com badge de disponibilidade
 export default function RoomsScreen() {
   const { user, logout } = useAuth();
-  const scheme = useColorScheme() ?? 'light';
+  const rawScheme = useColorScheme();
+  const scheme = rawScheme === 'dark' ? 'dark' : 'light';
   const colors = Colors[scheme];
 
   return (

@@ -1,56 +1,63 @@
-# Welcome to your Expo app 👋
+# 📅 Aplicativo de Reserva de Salas
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicativo mobile para **reserva e gerenciamento de salas**, desenvolvido como projeto acadêmico do curso de Análise e Desenvolvimento de Sistemas (ADS).
 
-## Get started
+O sistema permite que usuários consultem as salas disponíveis e façam reservas, enquanto administradores gerenciam as salas (cadastro, edição e exclusão) e as reservas. A autenticação é feita por e-mail e senha, com controle de acesso por perfil (usuário comum e administrador).
 
-1. Install dependencies
+## 👥 Integrantes
 
-   ```bash
-   npm install
-   ```
+| Nome | RA |
+|------|----|
+| Hugo Barbosa dos Santos | gu301553x |
+| Rayara Chambela Geronimo | gu3088552 |
+| Igor Mazeti de Oliveira | gu3080561 |
 
-2. Start the app
+## 🛠️ Tecnologias
 
-   ```bash
-   npx expo start
-   ```
+**Frontend (mobile)**
+- React Native + [Expo](https://expo.dev) (SDK 56)
+- Expo Router (navegação baseada em arquivos)
+- TypeScript
 
-In the output, you'll find options to open the app in a
+**Backend (API)**
+- Node.js + Express
+- Prisma ORM + SQLite
+- Autenticação com JWT e bcrypt
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 📂 Estrutura do projeto
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+reservas-salas/
+├── src/            # aplicativo mobile (telas, componentes, contextos, serviços)
+└── backend/        # API REST (controllers, rotas, middlewares, banco)
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## 🚀 Como executar
 
-### Other setup steps
+### Backend
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```bash
+cd backend
+npm install
+npx prisma migrate dev      # cria/atualiza o banco SQLite
+npm run dev                 # inicia a API em http://localhost:3000
+```
 
-## Learn more
+### Frontend (mobile)
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+npm install
+npx expo start              # inicia o Expo
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+No terminal do Expo é possível abrir o app em um emulador Android, simulador iOS, no navegador (web) ou no **Expo Go** (escaneando o QR Code).
 
-## Join the community
+> 💡 Para testar em um celular físico, o aparelho precisa estar na **mesma rede Wi-Fi** do computador, pois o app acessa a API pelo IP local da máquina.
 
-Join our community of developers creating universal apps.
+## 📌 Funcionalidades
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- Cadastro e login de usuários com persistência de sessão
+- Controle de acesso por perfil (usuário comum / administrador)
+- Listagem de salas com indicação de disponibilidade
+- Gerenciamento de salas pelo administrador (CRUD)
+- Reserva de salas com validação de conflito de horário

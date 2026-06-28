@@ -4,7 +4,7 @@ export interface AuthRequest extends Request {
   user?: { id: string; role: string };
 }
 
-// T02 
+// T02
 // Verificar o token JWT do header Authorization (Bearer <token>).
 // Popular req.user com { id, role } extraídos do token.
 // Retornar 401 se token ausente ou inválido.

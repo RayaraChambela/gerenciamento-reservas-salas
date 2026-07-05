@@ -1,20 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList,
-  StyleSheet, ActivityIndicator, Modal, ScrollView, useColorScheme, Platform,
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useColorScheme,
+  View,
 } from 'react-native';
+import { RoomStatusBadge } from '@/components/room-status-badge';
+import { Colors, Spacing } from '@/constants/theme';
 import { roomService } from '@/services/roomService';
 import { Room } from '@/types';
-import { Colors, Spacing } from '@/constants/theme';
 
 type RoomForm = { name: string; description: string; capacity: string; location: string };
+
 const emptyForm: RoomForm = { name: '', description: '', capacity: '', location: '' };
 
 const fields: { key: keyof RoomForm; label: string; placeholder: string; numeric?: boolean }[] = [
-  { key: 'name',        label: 'Nome da sala',   placeholder: 'Ex: Laboratório 01' },
-  { key: 'location',    label: 'Localização',    placeholder: 'Ex: Bloco B, 2º andar' },
-  { key: 'capacity',    label: 'Capacidade',     placeholder: 'Nº de pessoas', numeric: true },
-  { key: 'description', label: 'Descrição',      placeholder: 'Descreva a sala brevemente' },
+  { key: 'name', label: 'Nome da sala', placeholder: 'Ex: Laboratorio 01' },
+  { key: 'location', label: 'Localizacao', placeholder: 'Ex: Bloco B, 2 andar' },
+  { key: 'capacity', label: 'Capacidade', placeholder: 'Numero de pessoas', numeric: true },
+  { key: 'description', label: 'Descricao', placeholder: 'Descreva a sala brevemente' },
 ];
 
 export default function AdminRoomsScreen() {
@@ -31,13 +42,19 @@ export default function AdminRoomsScreen() {
   const [form, setForm] = useState<RoomForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [screenError, setScreenError] = useState<string | null>(null);
 
   async function fetchRooms() {
     setIsLoading(true);
-    try { setRooms(await roomService.list()); }
-    catch { setError('Erro ao carregar salas.'); }
-    finally { setIsLoading(false); }
+    setScreenError(null);
+    try {
+      setRooms(await roomService.list());
+    } catch (e: unknown) {
+      setScreenError(e instanceof Error ? e.message : 'Erro ao carregar salas.');
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   useEffect(() => { fetchRooms(); }, []);
@@ -45,38 +62,55 @@ export default function AdminRoomsScreen() {
   function openCreate() {
     setEditing(null);
     setForm(emptyForm);
-    setError(null);
+    setFormError(null);
     setModalVisible(true);
   }
 
   function openEdit(room: Room) {
     setEditing(room);
-    setForm({ name: room.name, description: room.description, capacity: String(room.capacity), location: room.location });
-    setError(null);
+    setForm({
+      name: room.name,
+      description: room.description,
+      capacity: String(room.capacity),
+      location: room.location,
+    });
+    setFormError(null);
     setModalVisible(true);
   }
 
   async function handleSave() {
-    if (!form.name || !form.description || !form.capacity || !form.location) {
-      setError('Preencha todos os campos.');
+    if (!form.name.trim() || !form.description.trim() || !form.capacity.trim() || !form.location.trim()) {
+      setFormError('Preencha todos os campos.');
       return;
     }
-    if (Number(form.capacity) <= 0) {
-      setError('Capacidade deve ser maior que zero.');
+
+    const capacity = Number(form.capacity);
+    if (!Number.isInteger(capacity) || capacity <= 0) {
+      setFormError('Capacidade deve ser maior que zero.');
       return;
     }
+
     setSaving(true);
-    setError(null);
+    setFormError(null);
+
     try {
+      const payload = {
+        name: form.name.trim(),
+        description: form.description.trim(),
+        capacity,
+        location: form.location.trim(),
+      };
+
       if (editing) {
-        await roomService.update(editing.id, { ...form, capacity: Number(form.capacity) });
+        await roomService.update(editing.id, payload);
       } else {
-        await roomService.create({ ...form, capacity: Number(form.capacity) });
+        await roomService.create(payload);
       }
+
       setModalVisible(false);
-      fetchRooms();
+      await fetchRooms();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Erro ao salvar.');
+      setFormError(e instanceof Error ? e.message : 'Erro ao salvar sala.');
     } finally {
       setSaving(false);
     }
@@ -84,13 +118,16 @@ export default function AdminRoomsScreen() {
 
   async function handleDelete() {
     if (!deleteTarget) return;
+
     setDeleting(true);
+    setScreenError(null);
+
     try {
       await roomService.delete(deleteTarget.id);
       setDeleteTarget(null);
-      fetchRooms();
+      await fetchRooms();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Não foi possível excluir.');
+      setScreenError(e instanceof Error ? e.message : 'Nao foi possivel excluir a sala.');
       setDeleteTarget(null);
     } finally {
       setDeleting(false);
@@ -99,8 +136,6 @@ export default function AdminRoomsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-
-      {/* Cabeçalho da página */}
       <View style={[styles.pageHeader, { borderBottomColor: colors.backgroundElement }]}>
         <View>
           <Text style={[styles.pageTitle, { color: colors.text }]}>Gerenciar Salas</Text>
@@ -113,50 +148,67 @@ export default function AdminRoomsScreen() {
         </TouchableOpacity>
       </View>
 
+      {screenError && (
+        <View style={styles.screenErrorBox}>
+          <Text selectable style={styles.errorText}>{screenError}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchRooms}>
+            <Text style={styles.retryText}>Tentar novamente</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {isLoading ? (
-        <ActivityIndicator style={{ marginTop: Spacing.six }} color="#1976D2" size="large" />
+        <View style={styles.loadingBlock}>
+          <ActivityIndicator color="#1976D2" size="large" />
+          {[0, 1, 2].map((item) => (
+            <View
+              key={item}
+              style={[
+                styles.card,
+                styles.skeletonCard,
+                { backgroundColor: isDark ? colors.backgroundElement : '#fff', borderColor: colors.backgroundSelected },
+              ]}>
+              <View style={[styles.skeletonLine, { width: '40%' }]} />
+              <View style={[styles.skeletonLine, { width: '65%' }]} />
+              <View style={[styles.skeletonLine, { width: '50%' }]} />
+            </View>
+          ))}
+        </View>
       ) : (
         <FlatList
           data={rooms}
-          keyExtractor={(r) => r.id}
+          keyExtractor={(room) => room.id}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
-            <View style={[styles.card, { backgroundColor: isDark ? colors.backgroundElement : '#fff', borderColor: colors.backgroundSelected }]}>
+            <View
+              style={[
+                styles.card,
+                { backgroundColor: isDark ? colors.backgroundElement : '#fff', borderColor: colors.backgroundSelected },
+              ]}>
               <View style={styles.cardTop}>
-                <View style={styles.cardLeft}>
-                  <View style={styles.cardIconBox}>
-                    <Text style={styles.cardIcon}>🏢</Text>
-                  </View>
-                  <View style={styles.cardInfo}>
-                    <Text style={[styles.roomName, { color: colors.text }]}>{item.name}</Text>
-                    <Text style={[styles.roomMeta, { color: colors.textSecondary }]}>
-                      📍 {item.location}
-                    </Text>
-                  </View>
-                </View>
-                <View style={[styles.statusBadge, { backgroundColor: item.isAvailable ? '#D1FAE5' : '#FEE2E2' }]}>
-                  <Text style={[styles.statusText, { color: item.isAvailable ? '#065F46' : '#991B1B' }]}>
-                    {item.isAvailable ? 'Disponível' : 'Ocupada'}
+                <View style={styles.cardInfo}>
+                  <Text selectable style={[styles.roomName, { color: colors.text }]}>{item.name}</Text>
+                  <Text selectable style={[styles.roomMeta, { color: colors.textSecondary }]}>
+                    Local: {item.location}
                   </Text>
                 </View>
+                <RoomStatusBadge isAvailable={item.isAvailable} compact />
               </View>
 
-              <Text style={[styles.roomDesc, { color: colors.textSecondary }]} numberOfLines={2}>
+              <Text selectable style={[styles.roomDesc, { color: colors.textSecondary }]} numberOfLines={2}>
                 {item.description}
               </Text>
 
               <View style={[styles.cardFooter, { borderTopColor: colors.backgroundSelected }]}>
-                <View style={styles.capacityTag}>
-                  <Text style={[styles.capacityText, { color: colors.textSecondary }]}>
-                    👥 {item.capacity} pessoas
-                  </Text>
-                </View>
+                <Text selectable style={[styles.capacityText, { color: colors.textSecondary }]}>
+                  Capacidade: {item.capacity}
+                </Text>
                 <View style={styles.actions}>
                   <TouchableOpacity style={[styles.actionBtn, styles.editBtn]} onPress={() => openEdit(item)}>
-                    <Text style={styles.editBtnText}>✏ Editar</Text>
+                    <Text style={styles.editBtnText}>Editar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={() => setDeleteTarget(item)}>
-                    <Text style={styles.deleteBtnText}>🗑 Excluir</Text>
+                    <Text style={styles.deleteBtnText}>Excluir</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -164,17 +216,15 @@ export default function AdminRoomsScreen() {
           )}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>🏢</Text>
               <Text style={[styles.emptyTitle, { color: colors.text }]}>Nenhuma sala cadastrada</Text>
               <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-                Clique em "Nova Sala" para começar
+                Crie uma sala para disponibilizar reservas.
               </Text>
             </View>
           }
         />
       )}
 
-      {/* Modal criar/editar */}
       <Modal visible={modalVisible} animationType="fade" transparent>
         <View style={styles.overlay}>
           <View style={[styles.modal, { backgroundColor: colors.background }]}>
@@ -183,73 +233,84 @@ export default function AdminRoomsScreen() {
                 {editing ? 'Editar Sala' : 'Nova Sala'}
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
-                <Text style={{ color: colors.textSecondary, fontSize: 20 }}>✕</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 20 }}>x</Text>
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              {fields.map((f) => (
-                <View key={f.key} style={styles.fieldGroup}>
-                  <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{f.label}</Text>
+              {fields.map((field) => (
+                <View key={field.key} style={styles.fieldGroup}>
+                  <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{field.label}</Text>
                   <TextInput
-                    style={[styles.input, {
-                      backgroundColor: isDark ? colors.backgroundElement : '#F5F7FA',
-                      color: colors.text,
-                      borderColor: isDark ? '#333' : '#E0E4EA',
-                    }]}
-                    placeholder={f.placeholder}
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: isDark ? colors.backgroundElement : '#F5F7FA',
+                        color: colors.text,
+                        borderColor: isDark ? '#333' : '#E0E4EA',
+                      },
+                    ]}
+                    placeholder={field.placeholder}
                     placeholderTextColor={colors.textSecondary}
-                    value={form[f.key]}
-                    onChangeText={(v) => setForm((prev) => ({ ...prev, [f.key]: v }))}
-                    keyboardType={f.numeric ? 'numeric' : 'default'}
-                    multiline={f.key === 'description'}
-                    numberOfLines={f.key === 'description' ? 3 : 1}
+                    value={form[field.key]}
+                    onChangeText={(value) => setForm((prev) => ({ ...prev, [field.key]: value }))}
+                    keyboardType={field.numeric ? 'numeric' : 'default'}
+                    multiline={field.key === 'description'}
+                    numberOfLines={field.key === 'description' ? 3 : 1}
                   />
                 </View>
               ))}
 
-              {error && (
+              {formError && (
                 <View style={styles.errorBox}>
-                  <Text style={styles.errorText}>⚠ {error}</Text>
+                  <Text selectable style={styles.errorText}>{formError}</Text>
                 </View>
               )}
             </ScrollView>
 
             <View style={styles.modalFooter}>
-              <TouchableOpacity style={[styles.footerBtn, { borderColor: colors.backgroundSelected, borderWidth: 1 }]} onPress={() => setModalVisible(false)}>
+              <TouchableOpacity
+                style={[styles.footerBtn, { borderColor: colors.backgroundSelected, borderWidth: 1 }]}
+                onPress={() => setModalVisible(false)}>
                 <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.footerBtn, styles.saveBtn, saving && { opacity: 0.6 }]} onPress={handleSave} disabled={saving}>
-                {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '600' }}>Salvar</Text>}
+              <TouchableOpacity
+                style={[styles.footerBtn, styles.saveBtn, saving && { opacity: 0.6 }]}
+                onPress={handleSave}
+                disabled={saving}>
+                {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.primaryButtonText}>Salvar</Text>}
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Modal confirmação de exclusão */}
       <Modal visible={!!deleteTarget} animationType="fade" transparent>
         <View style={styles.overlay}>
           <View style={[styles.confirmModal, { backgroundColor: colors.background }]}>
-            <Text style={styles.confirmIcon}>🗑</Text>
             <Text style={[styles.confirmTitle, { color: colors.text }]}>Excluir sala?</Text>
-            <Text style={[styles.confirmMsg, { color: colors.textSecondary }]}>
-              Tem certeza que deseja excluir{'\n'}
-              <Text style={{ fontWeight: '700', color: colors.text }}>"{deleteTarget?.name}"</Text>?{'\n'}
-              Esta ação não pode ser desfeita.
+            <Text selectable style={[styles.confirmMsg, { color: colors.textSecondary }]}>
+              {deleteTarget?.name}
+            </Text>
+            <Text selectable style={[styles.confirmHelp, { color: colors.textSecondary }]}>
+              Salas com reservas ativas atuais ou futuras nao podem ser excluidas.
             </Text>
             <View style={styles.confirmActions}>
-              <TouchableOpacity style={[styles.footerBtn, { borderColor: colors.backgroundSelected, borderWidth: 1 }]} onPress={() => setDeleteTarget(null)}>
+              <TouchableOpacity
+                style={[styles.footerBtn, { borderColor: colors.backgroundSelected, borderWidth: 1 }]}
+                onPress={() => setDeleteTarget(null)}>
                 <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.footerBtn, styles.deleteBtnModal, deleting && { opacity: 0.6 }]} onPress={handleDelete} disabled={deleting}>
-                {deleting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '600' }}>Excluir</Text>}
+              <TouchableOpacity
+                style={[styles.footerBtn, styles.deleteBtnModal, deleting && { opacity: 0.6 }]}
+                onPress={handleDelete}
+                disabled={deleting}>
+                {deleting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.primaryButtonText}>Excluir</Text>}
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-
     </View>
   );
 }
@@ -257,23 +318,54 @@ export default function AdminRoomsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   pageHeader: {
+    alignItems: 'center',
+    borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.three,
-    borderBottomWidth: 1,
   },
   pageTitle: { fontSize: 20, fontWeight: '700' },
   pageSubtitle: { fontSize: 13, marginTop: 2 },
   addButton: {
     backgroundColor: '#1976D2',
+    borderRadius: 8,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
-    borderRadius: 8,
   },
-  addButtonText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-  list: { padding: Spacing.four, gap: Spacing.three },
+  addButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  screenErrorBox: {
+    backgroundColor: '#FEE2E2',
+    borderRadius: 10,
+    gap: Spacing.two,
+    marginHorizontal: Spacing.four,
+    marginTop: Spacing.three,
+    padding: Spacing.three,
+  },
+  retryButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#1976D2',
+    borderRadius: 8,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  retryText: { color: '#fff', fontWeight: '700' },
+  loadingBlock: {
+    gap: Spacing.three,
+    padding: Spacing.four,
+  },
+  skeletonCard: {
+    gap: Spacing.two,
+    minHeight: 116,
+    padding: Spacing.three,
+  },
+  skeletonLine: {
+    backgroundColor: 'rgba(25, 118, 210, 0.16)',
+    borderRadius: 6,
+    height: 12,
+  },
+  list: { gap: Spacing.three, padding: Spacing.four },
   card: {
     borderRadius: 12,
     borderWidth: 1,
@@ -281,71 +373,58 @@ const styles = StyleSheet.create({
     ...Platform.select({ web: { boxShadow: '0 2px 8px rgba(0,0,0,0.06)' } as any }),
   },
   cardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.two,
+    justifyContent: 'space-between',
     padding: Spacing.three,
     paddingBottom: Spacing.two,
   },
-  cardLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, flex: 1 },
-  cardIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#EFF6FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cardIcon: { fontSize: 20 },
-  cardInfo: { flex: 1 },
+  cardInfo: { flex: 1, gap: 2 },
   roomName: { fontSize: 16, fontWeight: '700' },
-  roomMeta: { fontSize: 13, marginTop: 1 },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  statusText: { fontSize: 12, fontWeight: '600' },
+  roomMeta: { fontSize: 13 },
   roomDesc: {
     fontSize: 13,
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.two,
     lineHeight: 18,
+    paddingBottom: Spacing.two,
+    paddingHorizontal: Spacing.three,
   },
   cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
   },
-  capacityTag: {},
   capacityText: { fontSize: 13 },
   actions: { flexDirection: 'row', gap: Spacing.two },
-  actionBtn: { paddingHorizontal: Spacing.two + 2, paddingVertical: 6, borderRadius: 6 },
+  actionBtn: { borderRadius: 6, paddingHorizontal: Spacing.two + 2, paddingVertical: 6 },
   editBtn: { backgroundColor: '#EFF6FF' },
   editBtnText: { color: '#1976D2', fontSize: 13, fontWeight: '600' },
   deleteBtn: { backgroundColor: '#FEF2F2' },
   deleteBtnText: { color: '#DC2626', fontSize: 13, fontWeight: '600' },
-  emptyState: { alignItems: 'center', marginTop: Spacing.six, gap: Spacing.two },
-  emptyIcon: { fontSize: 48 },
+  emptyState: { alignItems: 'center', gap: Spacing.two, marginTop: Spacing.six },
   emptyTitle: { fontSize: 18, fontWeight: '700' },
   emptySubtitle: { fontSize: 14 },
   overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    flex: 1,
+    justifyContent: 'center',
     padding: Spacing.four,
   },
   modal: {
     borderRadius: 16,
-    width: '100%',
-    maxWidth: 520,
     maxHeight: '90%',
+    maxWidth: 520,
     padding: Spacing.four,
+    width: '100%',
   },
   modalHeader: {
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: Spacing.three,
   },
   modalTitle: { fontSize: 20, fontWeight: '700' },
@@ -355,36 +434,37 @@ const styles = StyleSheet.create({
   input: {
     borderRadius: 10,
     borderWidth: 1,
+    fontSize: 15,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two + 2,
-    fontSize: 15,
   },
   errorBox: {
     backgroundColor: '#FEE2E2',
     borderRadius: 8,
-    padding: Spacing.two,
     marginBottom: Spacing.two,
+    padding: Spacing.two,
   },
   errorText: { color: '#B91C1C', fontSize: 14 },
   modalFooter: { flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.three },
   footerBtn: {
+    alignItems: 'center',
+    borderRadius: 10,
     flex: 1,
     paddingVertical: Spacing.two + 4,
-    borderRadius: 10,
-    alignItems: 'center',
   },
   saveBtn: { backgroundColor: '#1976D2' },
+  primaryButtonText: { color: '#fff', fontWeight: '600' },
   confirmModal: {
+    alignItems: 'center',
     borderRadius: 16,
-    width: '100%',
+    gap: Spacing.two,
     maxWidth: 380,
     padding: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.two,
+    width: '100%',
   },
-  confirmIcon: { fontSize: 40, marginBottom: 4 },
   confirmTitle: { fontSize: 20, fontWeight: '700' },
-  confirmMsg: { fontSize: 14, textAlign: 'center', lineHeight: 22 },
+  confirmMsg: { fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  confirmHelp: { fontSize: 14, lineHeight: 20, textAlign: 'center' },
   confirmActions: { flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.two, width: '100%' },
   deleteBtnModal: { backgroundColor: '#DC2626' },
 });

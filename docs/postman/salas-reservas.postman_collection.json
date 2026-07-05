@@ -1,0 +1,511 @@
+{
+  "info": {
+    "name": "Salas e Reservas API",
+    "_postman_id": "2f3e879d-7dd4-4d62-b9d7-rooms-reservations",
+    "description": "Collection manual para validar endpoints de salas e reservas: sucesso, validacao e sem permissao.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "adminEmail", "value": "admin{{$timestamp}}@teste.com" },
+    { "key": "userEmail", "value": "user{{$timestamp}}@teste.com" },
+    { "key": "otherUserEmail", "value": "other{{$timestamp}}@teste.com" },
+    { "key": "password", "value": "123456" },
+    { "key": "adminToken", "value": "" },
+    { "key": "userToken", "value": "" },
+    { "key": "otherUserToken", "value": "" },
+    { "key": "roomName", "value": "" },
+    { "key": "roomId", "value": "" },
+    { "key": "reservationId", "value": "" },
+    { "key": "ownerCancelReservationId", "value": "" },
+    { "key": "otherReservationId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register admin - sucesso",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin Teste\",\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{password}}\",\n  \"role\": \"ADMIN\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', function () { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('adminToken', json.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register user - sucesso",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Usuario Teste\",\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{password}}\",\n  \"role\": \"USER\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', function () { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('userToken', json.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register other user - sucesso",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Outro Usuario\",\n  \"email\": \"{{otherUserEmail}}\",\n  \"password\": \"{{password}}\",\n  \"role\": \"USER\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', function () { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('otherUserToken', json.token);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Rooms",
+      "item": [
+        {
+          "name": "POST /rooms - sucesso ADMIN",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('roomName', `Sala Postman ${Date.now()}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', function () { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('roomId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/rooms",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{roomName}}\",\n  \"description\": \"Sala criada pela collection Postman\",\n  \"capacity\": 12,\n  \"location\": \"Bloco A\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /rooms - sucesso autenticado",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": "{{baseUrl}}/rooms"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('status 200', function () { pm.response.to.have.status(200); });"] }
+            }
+          ]
+        },
+        {
+          "name": "GET /rooms - sem token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/rooms"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('status 401', function () { pm.response.to.have.status(401); });"] }
+            }
+          ]
+        },
+        {
+          "name": "GET /rooms/:id - sucesso",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": "{{baseUrl}}/rooms/{{roomId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('status 200', function () { pm.response.to.have.status(200); });"] }
+            }
+          ]
+        },
+        {
+          "name": "POST /rooms - campos obrigatorios",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/rooms",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('status 400', function () { pm.response.to.have.status(400); });"] }
+            }
+          ]
+        },
+        {
+          "name": "POST /rooms - nome duplicado",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/rooms",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{roomName}}\",\n  \"description\": \"Duplicada\",\n  \"capacity\": 10,\n  \"location\": \"Bloco A\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('status 409', function () { pm.response.to.have.status(409); });"] }
+            }
+          ]
+        },
+        {
+          "name": "POST /rooms - sem permissao USER",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "url": "{{baseUrl}}/rooms",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sala sem permissao\",\n  \"description\": \"Nao deve criar\",\n  \"capacity\": 5,\n  \"location\": \"Bloco B\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('status 403', function () { pm.response.to.have.status(403); });"] }
+            }
+          ]
+        },
+        {
+          "name": "PUT /rooms/:id - sucesso ADMIN",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/rooms/{{roomId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Sala atualizada pela collection\",\n  \"capacity\": 14\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('status 200', function () { pm.response.to.have.status(200); });"] }
+            }
+          ]
+        },
+        {
+          "name": "PUT /rooms/:id - capacidade invalida",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": "{{baseUrl}}/rooms/{{roomId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"capacity\": 0\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('status 400', function () { pm.response.to.have.status(400); });"] }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /rooms/:id - sem permissao USER",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": "{{baseUrl}}/rooms/{{roomId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('status 403', function () { pm.response.to.have.status(403); });"] }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Reservations",
+      "item": [
+        {
+          "name": "POST /reservations - sucesso USER",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "url": "{{baseUrl}}/reservations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomId\": \"{{roomId}}\",\n  \"date\": \"2099-12-20\",\n  \"startTime\": \"10:00\",\n  \"endTime\": \"11:00\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', function () { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('reservationId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /reservations - conflito de horario",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "url": "{{baseUrl}}/reservations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomId\": \"{{roomId}}\",\n  \"date\": \"2099-12-20\",\n  \"startTime\": \"10:30\",\n  \"endTime\": \"11:30\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('status 409', function () { pm.response.to.have.status(409); });"] }
+            }
+          ]
+        },
+        {
+          "name": "POST /reservations - intervalo invalido",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "url": "{{baseUrl}}/reservations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomId\": \"{{roomId}}\",\n  \"date\": \"2099-12-21\",\n  \"startTime\": \"12:00\",\n  \"endTime\": \"11:00\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('status 400', function () { pm.response.to.have.status(400); });"] }
+            }
+          ]
+        },
+        {
+          "name": "GET /reservations/me - sucesso USER",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": "{{baseUrl}}/reservations/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('status 200', function () { pm.response.to.have.status(200); });"] }
+            }
+          ]
+        },
+        {
+          "name": "GET /reservations - sucesso ADMIN",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/reservations"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('status 200', function () { pm.response.to.have.status(200); });"] }
+            }
+          ]
+        },
+        {
+          "name": "GET /reservations - sem permissao USER",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": "{{baseUrl}}/reservations"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('status 403', function () { pm.response.to.have.status(403); });"] }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /rooms/:id - bloqueado por reserva futura ativa",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/rooms/{{roomId}}"
+          },
+          "description": "Com a reserva ativa criada em 2099-12-20, a exclusao da sala deve ser bloqueada.",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('status 409', function () { pm.response.to.have.status(409); });"] }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /reservations/:id - outro usuario sem permissao",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{otherUserToken}}" }],
+            "url": "{{baseUrl}}/reservations/{{reservationId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('status 403', function () { pm.response.to.have.status(403); });"] }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /reservations/:id - ADMIN cancela qualquer reserva",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/reservations/{{reservationId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('status 200', function () { pm.response.to.have.status(200); });"] }
+            }
+          ]
+        },
+        {
+          "name": "POST /reservations - sucesso para cancelamento do dono",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "url": "{{baseUrl}}/reservations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomId\": \"{{roomId}}\",\n  \"date\": \"2099-12-22\",\n  \"startTime\": \"10:00\",\n  \"endTime\": \"11:00\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', function () { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('ownerCancelReservationId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /reservations/:id - cancelamento pelo dono",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": "{{baseUrl}}/reservations/{{ownerCancelReservationId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('status 200', function () { pm.response.to.have.status(200); });"] }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /rooms/:id - sucesso ADMIN apos cancelamentos",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/rooms/{{roomId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('status 200', function () { pm.response.to.have.status(200); });"] }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

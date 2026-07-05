@@ -1,13 +1,16 @@
-// T19 — Rayara
-// Versão frontend da função de conflito de horários.
-// Reutilizar a mesma lógica do backend para validação client-side (T21).
-
 import { Reservation } from '../types';
+
+export type ReservationSlot = Pick<Reservation, 'date' | 'startTime' | 'endTime' | 'status'>;
 
 export function hasConflict(
   newSlot: { date: string; startTime: string; endTime: string },
-  existing: Pick<Reservation, 'date' | 'startTime' | 'endTime' | 'status'>[]
+  existing: ReservationSlot[]
 ): boolean {
-  // TODO (T19 — Rayara): implementar lógica de verificação de conflito
-  return false;
+  return existing.some(
+    (reservation) =>
+      reservation.status === 'ACTIVE' &&
+      reservation.date === newSlot.date &&
+      newSlot.startTime < reservation.endTime &&
+      newSlot.endTime > reservation.startTime
+  );
 }

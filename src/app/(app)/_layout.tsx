@@ -28,7 +28,8 @@ export default function AppLayout() {
     { label: 'Salas', href: '/(app)', icon: '🏢' },
     { label: 'Reservas', href: '/(app)/reservations/history', icon: '📅' },
     ...(isAdmin ? [
-      { label: 'Admin', href: '/(app)/admin/rooms', icon: '⚙️' },
+      { label: 'Admin Salas', href: '/(app)/admin/rooms', icon: '⚙️' },
+      { label: 'Admin Reservas', href: '/(app)/admin/reservations', icon: '📋' },
     ] : []),
     { label: 'Perfil', href: '/(app)/profile', icon: '👤' },
   ];

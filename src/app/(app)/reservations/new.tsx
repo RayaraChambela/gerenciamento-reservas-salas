@@ -4,17 +4,18 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   useColorScheme,
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { DateTimeField } from '@/components/DateTimeField';
 import { RoomStatusBadge } from '@/components/room-status-badge';
 import { Colors, Spacing } from '@/constants/theme';
 import { reservationService } from '@/services/reservationService';
 import { roomService } from '@/services/roomService';
 import { Room } from '@/types';
+import { hasConflict } from '@/utils/conflictChecker';
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -32,6 +33,9 @@ export default function NewReservationScreen() {
   );
 
   const [room, setRoom] = useState<Room | null>(null);
+  const [roomReservations, setRoomReservations] = useState<
+    { date: string; startTime: string; endTime: string; status: 'ACTIVE' | 'CANCELLED' }[]
+  >([]);
   const [date, setDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -52,8 +56,14 @@ export default function NewReservationScreen() {
       setIsLoading(true);
       setError(null);
       try {
-        const data = await roomService.get(roomId);
-        if (mounted) setRoom(data);
+        const [data, reservas] = await Promise.all([
+          roomService.get(roomId),
+          reservationService.listByRoom(roomId),
+        ]);
+        if (mounted) {
+          setRoom(data);
+          setRoomReservations(reservas);
+        }
       } catch (e: unknown) {
         if (mounted) setError(e instanceof Error ? e.message : 'Erro ao carregar sala.');
       } finally {
@@ -64,6 +74,22 @@ export default function NewReservationScreen() {
     fetchRoom();
     return () => { mounted = false; };
   }, [roomId]);
+
+  // T21: checagem de conflito no cliente (instantânea, sem enviar ao servidor)
+  const hasTimeConflict = useMemo(() => {
+    if (
+      !DATE_PATTERN.test(date.trim()) ||
+      !TIME_PATTERN.test(startTime.trim()) ||
+      !TIME_PATTERN.test(endTime.trim()) ||
+      endTime.trim() <= startTime.trim()
+    ) {
+      return false;
+    }
+    return hasConflict(
+      { date: date.trim(), startTime: startTime.trim(), endTime: endTime.trim() },
+      roomReservations
+    );
+  }, [date, startTime, endTime, roomReservations]);
 
   function validateForm() {
     if (!roomId || !date.trim() || !startTime.trim() || !endTime.trim()) {
@@ -80,6 +106,10 @@ export default function NewReservationScreen() {
 
     if (endTime.trim() <= startTime.trim()) {
       return 'Horario final deve ser maior que o inicial.';
+    }
+
+    if (hasTimeConflict) {
+      return 'Ja existe uma reserva nesse horario para esta sala.';
     }
 
     if (room && !room.isAvailable) {
@@ -150,62 +180,52 @@ export default function NewReservationScreen() {
       <View style={styles.form}>
         <View style={styles.fieldGroup}>
           <Text style={[styles.label, { color: colors.textSecondary }]}>Data</Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: isDark ? colors.backgroundElement : '#F5F7FA',
-                borderColor: isDark ? '#333' : '#E0E4EA',
-                color: colors.text,
-              },
-            ]}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={colors.textSecondary}
+          <DateTimeField
+            mode="date"
             value={date}
-            onChangeText={setDate}
-            autoCapitalize="none"
+            onChange={setDate}
+            backgroundColor={isDark ? colors.backgroundElement : '#F5F7FA'}
+            borderColor={isDark ? '#333' : '#E0E4EA'}
+            color={colors.text}
+            placeholderColor={colors.textSecondary}
           />
         </View>
 
         <View style={styles.timeRow}>
           <View style={[styles.fieldGroup, styles.timeField]}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Inicio</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: isDark ? colors.backgroundElement : '#F5F7FA',
-                  borderColor: isDark ? '#333' : '#E0E4EA',
-                  color: colors.text,
-                },
-              ]}
-              placeholder="HH:mm"
-              placeholderTextColor={colors.textSecondary}
+            <DateTimeField
+              mode="time"
               value={startTime}
-              onChangeText={setStartTime}
-              autoCapitalize="none"
+              onChange={setStartTime}
+              backgroundColor={isDark ? colors.backgroundElement : '#F5F7FA'}
+              borderColor={isDark ? '#333' : '#E0E4EA'}
+              color={colors.text}
+              placeholderColor={colors.textSecondary}
             />
           </View>
 
           <View style={[styles.fieldGroup, styles.timeField]}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Fim</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: isDark ? colors.backgroundElement : '#F5F7FA',
-                  borderColor: isDark ? '#333' : '#E0E4EA',
-                  color: colors.text,
-                },
-              ]}
-              placeholder="HH:mm"
-              placeholderTextColor={colors.textSecondary}
+            <DateTimeField
+              mode="time"
               value={endTime}
-              onChangeText={setEndTime}
-              autoCapitalize="none"
+              onChange={setEndTime}
+              backgroundColor={isDark ? colors.backgroundElement : '#F5F7FA'}
+              borderColor={isDark ? '#333' : '#E0E4EA'}
+              color={colors.text}
+              placeholderColor={colors.textSecondary}
             />
           </View>
         </View>
+
+        {hasTimeConflict && (
+          <View style={styles.conflictBox}>
+            <Text selectable style={styles.conflictText}>
+              ⚠ Este horário já está reservado para esta sala. Escolha outro.
+            </Text>
+          </View>
+        )}
 
         {error && (
           <View style={styles.errorBox}>
@@ -214,9 +234,9 @@ export default function NewReservationScreen() {
         )}
 
         <TouchableOpacity
-          style={[styles.submitButton, (isSaving || !room?.isAvailable) && styles.disabledButton]}
+          style={[styles.submitButton, (isSaving || !room?.isAvailable || hasTimeConflict) && styles.disabledButton]}
           onPress={handleSubmit}
-          disabled={isSaving || !room?.isAvailable}>
+          disabled={isSaving || !room?.isAvailable || hasTimeConflict}>
           {isSaving ? (
             <ActivityIndicator color="#fff" />
           ) : (
@@ -294,6 +314,18 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#B91C1C',
     fontSize: 14,
+  },
+  conflictBox: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: Spacing.two,
+  },
+  conflictText: {
+    color: '#92400E',
+    fontSize: 14,
+    fontWeight: '600',
   },
   submitButton: {
     alignItems: 'center',

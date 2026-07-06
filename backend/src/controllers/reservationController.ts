@@ -208,3 +208,18 @@ export async function deleteReservation(req: AuthRequest, res: Response) {
     return sendError(res, 500, 'RESERVATION_DELETE_FAILED', 'Erro ao cancelar reserva');
   }
 }
+
+// T21: reservas ativas de uma sala (usado pela checagem de conflito no cliente)
+export async function listByRoom(req: AuthRequest, res: Response) {
+  const { roomId } = req.params;
+  try {
+    const reservations = await prisma.reservation.findMany({
+      where: { roomId, status: 'ACTIVE' },
+      select: { id: true, date: true, startTime: true, endTime: true, status: true },
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+    });
+    return res.json(reservations);
+  } catch {
+    return sendError(res, 500, 'RESERVATION_LIST_ROOM_FAILED', 'Erro ao listar reservas da sala');
+  }
+}

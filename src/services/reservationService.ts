@@ -15,5 +15,9 @@ export const reservationService = {
     const query = new URLSearchParams(params as Record<string, string>).toString();
     return api.get<Reservation[]>(`/reservations${query ? `?${query}` : ''}`);
   },
+  listByRoom: (roomId: string) =>
+    api.get<{ date: string; startTime: string; endTime: string; status: 'ACTIVE' | 'CANCELLED' }[]>(
+      `/reservations/room/${roomId}`
+    ),
   cancel: (id: string) => api.delete<void>(`/reservations/${id}`),
 };

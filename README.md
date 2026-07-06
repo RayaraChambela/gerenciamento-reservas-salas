@@ -24,14 +24,6 @@ O sistema permite que usuários consultem as salas disponíveis e façam reserva
 - Prisma ORM + SQLite
 - Autenticação com JWT e bcrypt
 
-## 📂 Estrutura do projeto
-
-```
-reservas-salas/
-├── src/            # aplicativo mobile (telas, componentes, contextos, serviços)
-└── backend/        # API REST (controllers, rotas, middlewares, banco)
-```
-
 ## 🚀 Como executar
 
 ### Backend
@@ -39,11 +31,16 @@ reservas-salas/
 ```bash
 cd backend
 npm install
+cp .env.example .env        # cria o arquivo de variáveis (no Windows: copy .env.example .env)
 npx prisma migrate dev      # cria/atualiza o banco SQLite
 npm run dev                 # inicia a API em http://localhost:3000
 ```
 
+> No arquivo `.env`, ajuste o `JWT_SECRET` para uma chave de sua preferência.
+
 ### Frontend (mobile)
+
+Na raiz do projeto (fora da pasta `backend`):
 
 ```bash
 npm install
@@ -61,3 +58,4 @@ No terminal do Expo é possível abrir o app em um emulador Android, simulador i
 - Listagem de salas com indicação de disponibilidade
 - Gerenciamento de salas pelo administrador (CRUD)
 - Reserva de salas com validação de conflito de horário
+- Histórico de reservas do usuário, com cancelamento
